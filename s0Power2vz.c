@@ -11,7 +11,7 @@ this is a fork from https://github.com/w3llschmid/s0vz.git
 **************************************************************************/
 
 #define DAEMON_NAME "s0Power2vz"
-#define DAEMON_VERSION "1.0-frama"
+#define DAEMON_VERSION "1.0.1-frama"
 #define DAEMON_BUILD "4"
 
 /**************************************************************************
@@ -272,6 +272,7 @@ int main(void) {
 
 	//frama
 	int iImpCount [12] = {0,0,0,0};//12 is a test
+	iImpCount[0] = 0;
 	int iPower, iRun, iTest;	
 	//init start time 
 	time(&m_tStart);
@@ -380,10 +381,10 @@ bool checkTime (void) {
 	int  iDiff;	
 	m_ullTEnd = unixtime_sec();	
 	iDiff = (int) (m_ullTEnd - m_ullTStart);
-	//syslog(LOG_INFO, "Startzeit: %llu, EndZeit: %llu, Differenz : %d",m_ullTStart, m_ullTEnd, iDiff);
+//	syslog(LOG_INFO, "Startzeit: %llu, EndZeit: %llu, Differenz : %d",m_ullTStart, m_ullTEnd, iDiff);
 	if (iDiff >= m_updateTime)
 	{
-		syslog(LOG_INFO, "Es sind %d Sekunden vergangen, --> trigger Curl.", iDiff);
+//		syslog(LOG_INFO, "Es sind %d Sekunden vergangen, --> trigger Curl.", iDiff);
 		//init start time 
 		m_ullTStart = unixtime_sec();
 		return true;
