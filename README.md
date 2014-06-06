@@ -34,7 +34,7 @@ Precondition: Raspian Linux (http://www.raspberrypi.org/downloads)
 
 Binding libraries: libcurl & libconfig -> 'sudo apt-get install libcurl4-gnutls-dev libconfig-dev'
 
-Download: 'sudo git clone https://github.com/w3llschmidt/s0vz /usr/local/src/s0vz'
+Download: 'sudo git clone https://github.com/fragner/s0vz /usr/local/src/s0vz'
 
 ---
 
@@ -59,6 +59,8 @@ Reboot and check '/var/log/syslog' for outputs!
 
 License
 =======
+This is a fork from https://github.com/w3llschmidt/s0vz
+
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
