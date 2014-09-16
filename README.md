@@ -38,7 +38,7 @@ Download: 'sudo git clone https://github.com/fragner/s0Power2vz /usr/local/src/s
 
 ---
 
-s0Power2vz.c 	 	-> 'sudo gcc -o /usr/local/sbin/s0Power2vz /usr/local/src/s0vz/s0Power2vz.c -lconfig -lcurl'
+s0Power2vz.c 	 	-> 'sudo gcc -o /usr/local/sbin/s0Power2vz /usr/local/src/s0Power2vz/s0Power2vz.c -lconfig -lcurl'
 
 s0Power2vz.cfg	 	-> /etc/  
 
@@ -49,11 +49,11 @@ s0Power2vz 	 	-> /etc/init.d/ ( start/stop/restart )
 Configuration
 =============
 
-$ sudo vim /etc/init.d/rc.local ( replace '$all' with '$remote_fs $syslog $network' )
+$ sudo nano /etc/init.d/rc.local ( replace '$all' with '$remote_fs $syslog $network' )
 
 $ sudo insserv s0Power2vz ( make deamon autostart )
 
-$ sudo vim /etc/s0Power2vz.cfg ( edit your config )
+$ sudo nano /etc/s0Power2vz.cfg ( edit your config )
 
 Reboot and check '/var/log/syslog' for outputs!
 
