@@ -34,26 +34,26 @@ Precondition: Raspian Linux (http://www.raspberrypi.org/downloads)
 
 Binding libraries: libcurl & libconfig -> 'sudo apt-get install libcurl4-gnutls-dev libconfig-dev'
 
-Download: 'sudo git clone https://github.com/fragner/s0vz /usr/local/src/s0vz'
+Download: 'sudo git clone https://github.com/fragner/s0Power2vz /usr/local/src/s0Power2vz'
 
 ---
 
-s0vz.c 	 	-> 'sudo gcc -o /usr/local/sbin/s0vz /usr/local/src/s0vz/s0vz.c -lconfig -lcurl'
+s0Power2vz.c 	 	-> 'sudo gcc -o /usr/local/sbin/s0Power2vz /usr/local/src/s0Power2vz/s0Power2vz.c -lconfig -lcurl'
 
-s0vz.cfg	 	-> /etc/  
+s0Power2vz.cfg	 	-> /etc/  
 
 rc.local  	-> /etc/  ( ! add this settings, dont overwrite your exisiting rc.local ! )
 
-s0vz 	 	-> /etc/init.d/ ( start/stop/restart )
+s0Power2vz 	 	-> /etc/init.d/ ( start/stop/restart )
 
 Configuration
 =============
 
-$ sudo vim /etc/init.d/rc.local ( replace '$all' with '$remote_fs $syslog $network' )
+$ sudo nano /etc/init.d/rc.local ( replace '$all' with '$remote_fs $syslog $network' )
 
-$ sudo insserv s0vz ( make deamon autostart )
+$ sudo insserv s0Power2vz ( make deamon autostart )
 
-$ sudo vim /etc/s0vz.cfg ( edit your config )
+$ sudo nano /etc/s0Power2vz.cfg ( edit your config )
 
 Reboot and check '/var/log/syslog' for outputs!
 
