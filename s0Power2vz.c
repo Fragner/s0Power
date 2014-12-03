@@ -11,7 +11,7 @@ this is a fork from https://github.com/w3llschmid/s0vz.git
 **************************************************************************/
 
 #define DAEMON_NAME "s0Power2vz"
-#define DAEMON_VERSION "1.0.1-frama"
+#define DAEMON_VERSION "1.0.2-frama"
 #define DAEMON_BUILD "4"
 
 /**************************************************************************
@@ -87,6 +87,7 @@ void update_curl_handle_value(const char *vzuuid, int iRun, int iVal);
 bool checkTime(void);
 int calcPower( int iImpCount);
 unsigned long long unixtime_sec(void);
+const int CMAXINPUTS = 5; //5 inputs supportet
 /***********************************************+*/
 
 void signal_handler(int sig) {
@@ -233,6 +234,12 @@ void cfile() {
 	else
 	syslog(LOG_INFO, "VzPath:%s", vzpath);
 
+	//frama
+	if (inputs > CMAXINPUTS) {
+		syslog(LOG_INFO, "too many inputs (%i) defined, only %i inputs (GPIOS) supported.", inputs, CMAXINPUTS);
+		inputs = CMAXINPUTS;
+
+	}
 	for (i=0; i<inputs; i++)
 	{
 		char gpio[6];
@@ -271,21 +278,23 @@ void update_curl_handle(const char *vzuuid, int iRun, int iVal) {
 int main(void) {
 
 	//frama
-	int iImpCount [12] = {0,0,0,0};//12 is a test
-	iImpCount[0] = 0;
-	int iPower, iRun, iTest;	
-	//init start time 
+	int iImpCount [CMAXINPUTS];
+	int iPower=0, iRun=0,  iTest=0, i=0;
+	for (i=0;i<CMAXINPUTS;i++){
+		iImpCount[i] = 0;
+	}
+	//init start time
 	time(&m_tStart);
 	m_ullTStart = unixtime_sec();
 	//frama
-	
+
 	freopen( "/dev/null", "r", stdin);
 	freopen( "/dev/null", "w", stdout);
 	freopen( "/dev/null", "w", stderr);
 
-	FILE* devnull = NULL;		
+	FILE* devnull = NULL;
 	devnull = fopen("/dev/null", "w+");
-		
+
 	setlogmask(LOG_UPTO(LOG_INFO));
 	openlog(DAEMON_NAME, LOG_CONS | LOG_PERROR, LOG_USER);
 	syslog ( LOG_INFO, "S0/Impulse to Volkszaehler RaspberryPI deamon %s.%s", DAEMON_VERSION, DAEMON_BUILD );	
@@ -367,6 +376,7 @@ int calcPower( int iImpCount)	{
 	int iPower = 0;
 	if (iImpCount > 0) {
 		iPower = (3600 * iImpCount)/ m_updateTime;
+		if (iPower < 0) iPower = 0;//at startup a neg. value is calculated, why???		
 	}
 	return iPower;
 }
