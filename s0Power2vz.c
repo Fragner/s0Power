@@ -11,7 +11,7 @@ this is a fork from https://github.com/w3llschmid/s0vz.git
 **************************************************************************/
 
 #define DAEMON_NAME "s0Power2vz"
-#define DAEMON_VERSION "1.0.2-frama"
+#define DAEMON_VERSION "1.0.3-frama"
 #define DAEMON_BUILD "4"
 
 /**************************************************************************
@@ -78,7 +78,7 @@ static char errorBuffer[CURL_ERROR_SIZE+1];
 */
 time_t m_tStart, m_tEnd;
 int m_updateTime = 0; //time setted by config-file
-int m_debug = 0; //debug level setted by config-file
+int m_debug = 1; //debug level setted by config-file
 static int cEMPTY = 99999999;
 struct timeval m_tv2;
 unsigned long long m_ullTStart, m_ullTEnd;
