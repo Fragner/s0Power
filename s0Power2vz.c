@@ -78,6 +78,7 @@ static char errorBuffer[CURL_ERROR_SIZE+1];
 */
 time_t m_tStart, m_tEnd;
 int m_updateTime = 0; //time setted by config-file
+int m_debug = 0; //debug level setted by config-file
 static int cEMPTY = 99999999;
 struct timeval m_tv2;
 unsigned long long m_ullTStart, m_ullTEnd;
@@ -254,6 +255,13 @@ void cfile() {
 		syslog(LOG_INFO, "m_updateTime:%d", m_updateTime);	
 	}	
 	else syslog(LOG_INFO, "m_updateTime:%d not found", m_updateTime);	
+	
+	if (config_lookup_int(&cfg, "debug", &m_debug))
+	{
+		syslog(LOG_INFO, "m_debug: %d", m_debug);	
+	}	
+	else syslog(LOG_INFO, "m_debug: %d not found --> use default value", m_debug);	
+	
 }
 
 unsigned long long unixtime() {
@@ -270,7 +278,9 @@ void update_curl_handle(const char *vzuuid, int iRun, int iVal) {
 		else {			
 			sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu&value=%d", vzserver, vzport, vzpath, vzuuid, unixtime(), iVal);
 		}
-		syslog ( LOG_INFO, "send to this url:  %s", url );			
+		if (m_debug > 1) {
+			syslog ( LOG_INFO, "send to this url:  %s", url );			
+		}
 		curl_easy_setopt(easyhandle[iRun], CURLOPT_URL, url);		
 		curl_multi_add_handle(multihandle, easyhandle[iRun]);				
 }
@@ -332,7 +342,9 @@ int main(void) {
 										
 	for ( ;; ) {	
 		if((multihandle_res = curl_multi_perform(multihandle, &running_handles)) != CURLM_OK) {
-		syslog(LOG_INFO, "HTTP_POST(): %s", curl_multi_strerror(multihandle_res) );
+			if (m_debug > 0) {							
+				syslog(LOG_INFO, "HTTP_POST(): %s", curl_multi_strerror(multihandle_res) );
+			}
 		}
 		
 		int ret = poll(fds, inputs, 1000);				
@@ -345,8 +357,10 @@ int main(void) {
 //					syslog(LOG_INFO, "counted impulse: %d, Index: %d", iImpCount[i], i);
 					iTest++;
 					if (iTest >= 100) {
-						syslog(LOG_INFO, "%d signal's received, -> still alive ", iTest);//frama
 						iTest = 0;
+						if (m_debug > 0) {					
+							syslog(LOG_INFO, "%d signal's received, -> still alive ", iTest);//frama
+						}
 					}
 				}
 			}
@@ -355,7 +369,9 @@ int main(void) {
 		if ((m_updateTime > 0) && checkTime()) {
 			for (iRun=0; iRun<inputs; iRun++) {	
 				iPower = calcPower(iImpCount[iRun]);
-				syslog(LOG_INFO, "counted impulse: %d, calculated Power: %d, Index: %d", iImpCount[iRun], iPower, iRun);						
+				if (m_debug > 2) {					
+					syslog(LOG_INFO, "counted impulse: %d, calculated Power: %d, Index: %d", iImpCount[iRun], iPower, iRun);						
+				}
 				update_curl_handle(vzuuid[iRun], iRun, iPower);
 				//reset counter
 				iImpCount[iRun] = 0;
@@ -391,10 +407,14 @@ bool checkTime (void) {
 	int  iDiff;	
 	m_ullTEnd = unixtime_sec();	
 	iDiff = (int) (m_ullTEnd - m_ullTStart);
-//	syslog(LOG_INFO, "Startzeit: %llu, EndZeit: %llu, Differenz : %d",m_ullTStart, m_ullTEnd, iDiff);
+	if (m_debug > 2) {	
+		syslog(LOG_INFO, "Startzeit: %llu, EndZeit: %llu, Differenz : %d",m_ullTStart, m_ullTEnd, iDiff);
+	}
 	if (iDiff >= m_updateTime)
 	{
-//		syslog(LOG_INFO, "Es sind %d Sekunden vergangen, --> trigger Curl.", iDiff);
+	if (m_debug > 2) {	
+		syslog(LOG_INFO, "Es sind %d Sekunden vergangen, --> trigger Curl.", iDiff);
+	}	
 		//init start time 
 		m_ullTStart = unixtime_sec();
 		return true;
