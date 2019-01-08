@@ -52,14 +52,11 @@ Configuration
 $ sudo nano /etc/s0Power2vz.cfg ( edit your config )
 
 Autostart:
-
-with init.d
-----------
-$ sudo nano /etc/init.d/rc.local ( replace '$all' with '$remote_fs $syslog $network' )
-$ sudo insserv s0Power2vz ( make deamon autostart )
+with init.d:
+ $ sudo nano /etc/init.d/rc.local ( replace '$all' with '$remote_fs $syslog $network' )
+ $ sudo insserv s0Power2vz ( make deamon autostart )
 with systemd (debian 9, stretch)
-----------
-$ sudo systemctl enable s0Power2vz (make deamon autostart) 
+ $ sudo systemctl enable s0Power2vz (make deamon autostart) 
 
 Reboot and check '/var/log/syslog' for outputs!
 
