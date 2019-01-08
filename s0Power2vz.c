@@ -11,7 +11,7 @@ this is a fork from https://github.com/w3llschmid/s0vz.git
 **************************************************************************/
 
 #define DAEMON_NAME "s0Power2vz"
-#define DAEMON_VERSION "1.0.3-frama"
+#define DAEMON_VERSION "1.0.4-frama"
 #define DAEMON_BUILD "4"
 
 /**************************************************************************
@@ -89,6 +89,7 @@ bool checkTime(void);
 int calcPower( int iImpCount);
 unsigned long long unixtime_sec(void);
 const int CMAXINPUTS = 5; //5 inputs supportet
+int m_once = 1;
 /***********************************************+*/
 
 void signal_handler(int sig) {
@@ -154,7 +155,7 @@ void daemonize(char *rundir, char *pidfile) {
 	{
 		printf("Child process created: %d\n", pid);
 		exit(EXIT_SUCCESS);
-	}	
+	}
 	umask(027);
 
 	sid = setsid();
@@ -235,12 +236,12 @@ void cfile() {
 	else
 	syslog(LOG_INFO, "VzPath:%s", vzpath);
 
-	//frama
+ 	//frama
 	if (inputs > CMAXINPUTS) {
 		syslog(LOG_INFO, "too many inputs (%i) defined, only %i inputs (GPIOS) supported.", inputs, CMAXINPUTS);
 		inputs = CMAXINPUTS;
 
-	}
+	}      
 	for (i=0; i<inputs; i++)
 	{
 		char gpio[6];
@@ -248,20 +249,20 @@ void cfile() {
 		if ( config_lookup_string( &cfg, gpio, &vzuuid[i]) == CONFIG_TRUE )
 		syslog ( LOG_INFO, "%s = %s", gpio, vzuuid[i] );
 	}
-	
+
 	//frama
 	if (config_lookup_int(&cfg, "updateTime", &m_updateTime))
 	{
-		syslog(LOG_INFO, "m_updateTime:%d", m_updateTime);	
-	}	
-	else syslog(LOG_INFO, "m_updateTime:%d not found", m_updateTime);	
-	
+		syslog(LOG_INFO, "m_updateTime:%d", m_updateTime);
+	}
+	else syslog(LOG_INFO, "m_updateTime:%d not found", m_updateTime);
+
 	if (config_lookup_int(&cfg, "debug", &m_debug))
 	{
 		syslog(LOG_INFO, "m_debug: %d", m_debug);	
 	}	
 	else syslog(LOG_INFO, "m_debug: %d not found --> use default value", m_debug);	
-	
+
 }
 
 unsigned long long unixtime() {
@@ -271,26 +272,30 @@ return ms_timestamp;
 }
 
 void update_curl_handle(const char *vzuuid, int iRun, int iVal) {
-		curl_multi_remove_handle(multihandle, easyhandle[iRun]);			
+		curl_multi_remove_handle(multihandle, easyhandle[iRun]);
 		if (iVal == cEMPTY) {
-			sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu", vzserver, vzport, vzpath, vzuuid, unixtime());		
+			sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu", vzserver, vzport, vzpath, vzuuid, unixtime());
 		}
-		else {			
+		else {
 			sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu&value=%d", vzserver, vzport, vzpath, vzuuid, unixtime(), iVal);
 		}
-		if (m_debug > 1) {
-			syslog ( LOG_INFO, "send to this url:  %s", url );			
+ 		if (m_debug > 1) {                   
+      syslog ( LOG_INFO, "send to this url:  %s", url );
+    }
+		curl_easy_setopt(easyhandle[iRun], CURLOPT_URL, url);
+		curl_multi_add_handle(multihandle, easyhandle[iRun]);
+		if (m_once > 0){
+			syslog(LOG_INFO, "update_curl_handle: iVal = : %i",iVal);
 		}
-		curl_easy_setopt(easyhandle[iRun], CURLOPT_URL, url);		
-		curl_multi_add_handle(multihandle, easyhandle[iRun]);				
+
 }
 
 int main(void) {
 
 	//frama
 	int iImpCount [CMAXINPUTS];
-	int iPower=0, iRun=0,  iTest=0, i=0;
-	for (i=0;i<CMAXINPUTS;i++){
+	int iPower=0, iRun=0, iTest=0;
+  	for (i=0;i<CMAXINPUTS;i++){
 		iImpCount[i] = 0;
 	}
 	//init start time
@@ -307,47 +312,47 @@ int main(void) {
 
 	setlogmask(LOG_UPTO(LOG_INFO));
 	openlog(DAEMON_NAME, LOG_CONS | LOG_PERROR, LOG_USER);
-	syslog ( LOG_INFO, "S0/Impulse to Volkszaehler RaspberryPI deamon %s.%s", DAEMON_VERSION, DAEMON_BUILD );	
-	cfile();	
-	char pid_file[16];	
+	syslog ( LOG_INFO, "S0/Impulse to Volkszaehler RaspberryPI deamon %s.%s", DAEMON_VERSION, DAEMON_BUILD );
+	cfile();
+	char pid_file[16];
 	sprintf ( pid_file, "/tmp/%s.pid", DAEMON_NAME );
-	daemonize( "/tmp/", pid_file );	
+	daemonize( "/tmp/", pid_file );
 	char buffer[BUF_LEN];
 	struct pollfd fds[inputs];
-	
+
 	curl_global_init(CURL_GLOBAL_ALL);
-	multihandle = curl_multi_init();	
-			
-	for (i=0; i<inputs; i++) {		
+	multihandle = curl_multi_init();
+
+	for (i=0; i<inputs; i++) {
 		snprintf ( buffer, BUF_LEN, "/sys/class/gpio/gpio%d/value", gpio_pin_id[i] );
-		if((fds[i].fd = open(buffer, O_RDONLY|O_NONBLOCK)) == 0) {			
+		if((fds[i].fd = open(buffer, O_RDONLY|O_NONBLOCK)) == 0) {
 			syslog(LOG_INFO,"Error:%s (%m)", buffer);
-			exit(1);				
+			exit(1);
 		}
-	
+
 		fds[i].events = POLLPRI;
-		fds[i].revents = 0;	
-			
+		fds[i].revents = 0;
+
 		easyhandle[i] = curl_easy_init();
-		
+
 		curl_easy_setopt(easyhandle[i], CURLOPT_URL, url);
 		curl_easy_setopt(easyhandle[i], CURLOPT_POSTFIELDS, "");
 		curl_easy_setopt(easyhandle[i], CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION );
 		curl_easy_setopt(easyhandle[i], CURLOPT_WRITEDATA, devnull);
 		curl_easy_setopt(easyhandle[i], CURLOPT_ERRORBUFFER, errorBuffer);
-		
+
 		curl_multi_add_handle(multihandle, easyhandle[i]);
-									
+
 	}
-										
-	for ( ;; ) {	
+
+	for ( ;; ) {
 		if((multihandle_res = curl_multi_perform(multihandle, &running_handles)) != CURLM_OK) {
-			if (m_debug > 0) {							
-				syslog(LOG_INFO, "HTTP_POST(): %s", curl_multi_strerror(multihandle_res) );
-			}
+  		if (m_debug > 0) {	                          
+        syslog(LOG_INFO, "HTTP_POST(): %s", curl_multi_strerror(multihandle_res) );
+      }   
 		}
-		
-		int ret = poll(fds, inputs, 1000);				
+
+		int ret = poll(fds, inputs, 1000);
 		if(ret>0) {
 			for (i=0; i<inputs; i++) {
 				if (fds[i].revents & POLLPRI) {
@@ -367,19 +372,20 @@ int main(void) {
 		}
 		//frama
 		if ((m_updateTime > 0) && checkTime()) {
-			for (iRun=0; iRun<inputs; iRun++) {	
+			for (iRun=0; iRun<inputs; iRun++) {
 				iPower = calcPower(iImpCount[iRun]);
-				if (m_debug > 2) {					
-					syslog(LOG_INFO, "counted impulse: %d, calculated Power: %d, Index: %d", iImpCount[iRun], iPower, iRun);						
-				}
+				if (m_debug > 2) {
+          syslog(LOG_INFO, "counted impulse: %d, calculated Power: %d, Index: %d", iImpCount[iRun], iPower, iRun);
+        }
 				update_curl_handle(vzuuid[iRun], iRun, iPower);
 				//reset counter
 				iImpCount[iRun] = 0;
 			}
+			m_once = 0;//only first value's in syslog
 		}
-		//frama					
-	}	
-	curl_global_cleanup();	
+		//frama
+	}
+	curl_global_cleanup();
 return 0;
 }//main_end
 
@@ -390,10 +396,14 @@ return 0;
 /* powermeter has an resolution from 1000 Imp/kWh */
 int calcPower( int iImpCount)	{
 	int iPower = 0;
+	if (m_once > 0){
+		syslog(LOG_INFO, "calcPower: iImpCount = : %i, m_updateTime = %i", iImpCount, m_updateTime);
+	}  
 	if (iImpCount > 0) {
 		iPower = (3600 * iImpCount)/ m_updateTime;
-		if (iPower < 0) iPower = 0;//at startup a neg. value is calculated, why???		
+    if (iPower < 0) iPower = 0;//at startup a neg. value is calculated, why???
 	}
+
 	return iPower;
 }
 
@@ -404,18 +414,17 @@ int calcPower( int iImpCount)	{
 	return: true when the time diff is bigger than the configerd time
 */
 bool checkTime (void) {
-	int  iDiff;	
-	m_ullTEnd = unixtime_sec();	
+	int  iDiff;
+	m_ullTEnd = unixtime_sec();
 	iDiff = (int) (m_ullTEnd - m_ullTStart);
 	if (m_debug > 2) {	
 		syslog(LOG_INFO, "Startzeit: %llu, EndZeit: %llu, Differenz : %d",m_ullTStart, m_ullTEnd, iDiff);
-	}
-	if (iDiff >= m_updateTime)
-	{
-	if (m_debug > 2) {	
-		syslog(LOG_INFO, "Es sind %d Sekunden vergangen, --> trigger Curl.", iDiff);
-	}	
-		//init start time 
+  }
+	if (iDiff >= m_updateTime) {
+    if (m_debug > 2) {	
+      syslog(LOG_INFO, "Es sind %d Sekunden vergangen, --> trigger Curl.", iDiff);
+    }
+		//init start time
 		m_ullTStart = unixtime_sec();
 		return true;
 	}
