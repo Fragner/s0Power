@@ -27,6 +27,24 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+Raspberry pi preparation
+============
+### Configure GPIO as input<br>
+At first it must created<br>
+eg GPIO2:
+```
+echo 2 > /sys/class/gpio/export
+```
+now set as input
+```
+echo in > /sys/class/gpio/gpio2/direction
+```
+
+### GPIO-state
+To determine the state, i.e. "high" or "low", at a GPIO, the following command is sufficient. The GPIO can be both an input and an output.
+```
+cat /sys/class/gpio/gpio2/value
+```
 Installation
 ============
 
@@ -48,13 +66,15 @@ s0Power2vz.service	-> /etc/systemd/system/
 
 Configuration
 =============
-
-$ sudo nano /etc/s0Power2vz.cfg ( edit your config )
-
+```
+sudo nano /etc/s0Power2vz.cfg ( edit your config )
+```
 Autostart:
-* $ sudo systemctl daemon-reload
-* $ sudo systemctl enable s0Power2vz.service (make deamon autostart) 
-* $ sudo systemctl start s0Power2vz.service
+```
+sudo systemctl daemon-reload
+sudo systemctl enable s0Power2vz.service (make deamon autostart) 
+sudo systemctl start s0Power2vz.service
+```
 
 
 License
