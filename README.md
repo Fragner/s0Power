@@ -45,6 +45,8 @@ To determine the state, i.e. "high" or "low", at a GPIO, the following command i
 ```
 cat /sys/class/gpio/gpio2/value
 ```
+On https://pinout.xyz/# you can find a great interactive GPIO Pinout
+
 Installation
 ============
 
