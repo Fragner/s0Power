@@ -39,12 +39,12 @@ Download: 'sudo git clone https://github.com/fragner/s0Power2vz /usr/local/src/s
 ---
 
 s0Power2vz.c	-> 'sudo gcc -o /usr/local/sbin/s0Power2vz /usr/local/src/s0Power2vz/s0Power2vz.c -lconfig -lcurl'
+or ./compile.sh
 
 s0Power2vz.cfg	-> /etc/  
 
-rc.local	-> /etc/  ( ! add this settings, dont overwrite your exisiting rc.local ! )
+s0Power2vz.service	-> /etc/systemd/system/
 
-s0Power2vz.init.d	-> /etc/init.d/s0Power2vz ( start/stop/restart )
 
 Configuration
 =============
@@ -52,15 +52,10 @@ Configuration
 $ sudo nano /etc/s0Power2vz.cfg ( edit your config )
 
 Autostart:
----
-with init.d:
-* $ sudo nano /etc/init.d/rc.local ( replace '$all' with '$remote_fs $syslog $network' )
-* $ sudo insserv s0Power2vz ( make deamon autostart )
+* $ sudo systemctl daemon-reload
+* $ sudo systemctl enable s0Power2vz.service (make deamon autostart) 
+* $ sudo systemctl start s0Power2vz.service
 
-with systemd (debian 9, stretch)
-* $ sudo systemctl enable s0Power2vz (make deamon autostart) 
-
-Reboot and check '/var/log/syslog' for outputs!
 
 License
 =======
