@@ -11,7 +11,7 @@ this is a fork from https://github.com/w3llschmid/s0vz.git
 **************************************************************************/
 
 #define DAEMON_NAME "s0Power2vz"
-#define DAEMON_VERSION "1.0.4-frama"
+#define DAEMON_VERSION "1.0.0-wiringPi"
 #define DAEMON_BUILD "4"
 
 /**************************************************************************
@@ -44,13 +44,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <libconfig.h>          /* reading, manipulating, and writing structured configuration files */
 #include <curl/curl.h>          /* multiprotocol file transfer library */
-#include <poll.h>			/* wait for events on file descriptors */
+#include <poll.h>			          /* wait for events on file descriptors */
 
 #include <sys/ioctl.h>		/* */
 
 #include <stdbool.h>
 
+#include <wiringPi.h>
+
+
 #define BUF_LEN 64
+
+// What GPIO input are we using?, See http://wiringpi.com/pins/
+//	This is a wiringPi pin number
+
+#define	BUTTON_PIN	8 
 
 void daemonShutdown();
 void signal_handler(int sig);
@@ -61,7 +69,7 @@ int pidFilehandle, vzport, i, len, running_handles, rc;
 const char *vzserver, *vzpath, *vzuuid[64];
 
 //char gpio_pin_id[] = { 17, 18, 27, 22, 23, 24 }, url[128];
-char gpio_pin_id[] = {2 }, url[128];
+char gpio_pin_id[] = {2 }, url[256];
 
 int inputs = sizeof(gpio_pin_id)/sizeof(gpio_pin_id[0]);
 
@@ -73,16 +81,18 @@ CURLMcode multihandle_res;
 
 static char errorBuffer[CURL_ERROR_SIZE+1];
 
+
 /***********************************************
  * framas changes
 */
 time_t m_tStart, m_tEnd;
-int m_updateTime = 0; //time setted by config-file
+int m_updateTime = 60; //time setted by config-file
 int m_debug = 1; //debug level setted by config-file
 static int cEMPTY = 99999999;
 struct timeval m_tv2;
-unsigned long long m_ullTStart, m_ullTEnd;
+unsigned long long m_ullTStart;
 
+FILE* devnull = NULL;
 
 void update_curl_handle_value(const char *vzuuid, int iRun, int iVal);
 bool checkTime(void);
@@ -91,9 +101,44 @@ unsigned long long unixtime_sec(void);
 const int CMAXINPUTS = 5; //5 inputs supportet
 int m_once = 1;
 /***********************************************+*/
+// globalCounter:
+//	Global variable to count interrupts
+//	Should be declared volatile to make sure the compiler doesn't cache it.
 
+static volatile int globalCounter = 0 ;
+/*
+ * myInterrupt:
+ *********************************************************************************
+ */
+void myInterrupt (void)
+{
+  ++globalCounter ;
+}
+
+
+void myPoll (void){
+	struct pollfd fds[1];
+	char buffer[BUF_LEN];
+	int iImpCount;
+	snprintf ( buffer, BUF_LEN, "/sys/class/gpio/gpio%d/value", gpio_pin_id[i] );
+	if((fds[0].fd = open(buffer, O_RDONLY|O_NONBLOCK)) == 0) {
+			syslog(LOG_INFO,"Error:%s (%m)", buffer);
+			exit(1);
+	}  
+    fds[0].events = POLLPRI;
+    fds[0].revents = 0;    
+    int ret = poll(fds, inputs, 1000);
+    if(ret>0) {
+		if (fds[0].revents & POLLPRI) {
+						len = read(fds[0].fd, buffer, BUF_LEN);
+	//					update_curl_handle(vzuuid[i], i, cEMPTY);
+						iImpCount++;
+		}
+	}
+}
+
+/**/
 void signal_handler(int sig) {
-
 	switch(sig)
 	{
 		case SIGHUP:
@@ -112,10 +157,10 @@ void signal_handler(int sig) {
 }
 
 void daemonShutdown() {
-		close(pidFilehandle);
-		char pid_file[16];
-		sprintf ( pid_file, "/tmp/%s.pid", DAEMON_NAME );
-		remove(pid_file);
+	close(pidFilehandle);
+	char pid_file[16];
+	sprintf ( pid_file, "/tmp/%s.pid", DAEMON_NAME );
+	remove(pid_file);
 }
 
 void daemonize(char *rundir, char *pidfile) {
@@ -145,12 +190,10 @@ void daemonize(char *rundir, char *pidfile) {
 	sigaction(SIGINT, &newSigAction, NULL);
 
 	pid = fork();
-
 	if (pid < 0)
 	{
 		exit(EXIT_FAILURE);
 	}
-
 	if (pid > 0)
 	{
 		printf("Child process created: %d\n", pid);
@@ -191,9 +234,7 @@ void daemonize(char *rundir, char *pidfile) {
 }
 
 void cfile() {
-
 	config_t cfg;
-	//config_setting_t *setting;
 	config_init(&cfg);
 	int chdir(const char *path);
 	chdir ("/etc");
@@ -224,7 +265,7 @@ void cfile() {
 		exit(EXIT_FAILURE);
 	}
 	else
-	syslog(LOG_INFO, "VzPort:%d", vzport);
+    syslog(LOG_INFO, "VzPort:%d", vzport);
 
 	if (!config_lookup_string(&cfg, "vzpath", &vzpath))
 	{
@@ -234,13 +275,12 @@ void cfile() {
 		exit(EXIT_FAILURE);
 	}
 	else
-	syslog(LOG_INFO, "VzPath:%s", vzpath);
+    syslog(LOG_INFO, "VzPath:%s", vzpath);
 
  	//frama
 	if (inputs > CMAXINPUTS) {
 		syslog(LOG_INFO, "too many inputs (%i) defined, only %i inputs (GPIOS) supported.", inputs, CMAXINPUTS);
 		inputs = CMAXINPUTS;
-
 	}      
 	for (i=0; i<inputs; i++)
 	{
@@ -255,138 +295,147 @@ void cfile() {
 	{
 		syslog(LOG_INFO, "m_updateTime:%d", m_updateTime);
 	}
-	else syslog(LOG_INFO, "m_updateTime:%d not found", m_updateTime);
+    else syslog(LOG_INFO, "m_updateTime:%d not found", m_updateTime);
 
 	if (config_lookup_int(&cfg, "debug", &m_debug))
 	{
 		syslog(LOG_INFO, "m_debug: %d", m_debug);	
-	}	
-	else syslog(LOG_INFO, "m_debug: %d not found --> use default value", m_debug);	
+	}
+    else syslog(LOG_INFO, "m_debug: %d not found --> use default value", m_debug);	
 
 }
 
 unsigned long long unixtime() {
 	gettimeofday(&tv,NULL);
 	unsigned long long ms_timestamp = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
-return ms_timestamp;
+  return ms_timestamp;
 }
 
-void update_curl_handle(const char *vzuuid, int iRun, int iVal) {
-		curl_multi_remove_handle(multihandle, easyhandle[iRun]);
-		if (iVal == cEMPTY) {
-			sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu", vzserver, vzport, vzpath, vzuuid, unixtime());
-		}
-		else {
-			sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu&value=%d", vzserver, vzport, vzpath, vzuuid, unixtime(), iVal);
-		}
- 		if (m_debug > 1) {                   
-      syslog ( LOG_INFO, "send to this url:  %s", url );
+
+void update_curl_handle(const char *vzuuid, int iVal) {
+  if (iVal == cEMPTY) {
+    sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu", vzserver, vzport, vzpath, vzuuid, unixtime());
+  }
+  else {
+    sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu&value=%d", vzserver, vzport, vzpath, vzuuid, unixtime(), iVal);
+  }
+  if (m_debug > 1) {                   
+    syslog ( LOG_INFO, "send to this url:  %s", url );
+  }
+  
+  CURLcode res;
+  CURL *curl = curl_easy_init();
+  
+  
+
+  if(curl) {    
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION );
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, devnull);
+		curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
+    //curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.24.120:80/volkszaehler/htdocs/middleware.php/data/fd3aec80-ed45-11e3-834a-11f2a80cada3.json?ts=1636135781457&value=60");
+    res = curl_easy_perform(curl);
+    /* Check for errors */
+    if(res != CURLE_OK) {
+      fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+    } else {
+      if (m_debug > 2 ) {
+        syslog(LOG_INFO, "curl sucessfully");  
+      }
     }
-		curl_easy_setopt(easyhandle[iRun], CURLOPT_URL, url);
-		curl_multi_add_handle(multihandle, easyhandle[iRun]);
-		if (m_once > 0){
-			syslog(LOG_INFO, "update_curl_handle: iVal = : %i",iVal);
-		}
-
+              
+    curl_easy_cleanup(curl);
+  } else {
+    syslog(LOG_PERROR, "ERROR curl not ready"); 
+  }
+  
+  if (m_once > 0){
+    syslog(LOG_INFO, "update_curl_handle: iVal = : %i",iVal);
+  }
 }
-
+/*********************************************************************************
+ * main
+ *********************************************************************************/
 int main(void) {
 
-	//frama
-	int iImpCount [CMAXINPUTS];
-	int iPower=0, iRun=0, iTest=0;
-  	for (i=0;i<CMAXINPUTS;i++){
-		iImpCount[i] = 0;
+	if (wiringPiSetup () < 0)	{    
+		syslog(LOG_WARNING,  "Unable to setup wiringPi: %s\n", strerror (errno));
+		return 1 ;
+	}
+	if (wiringPiISR (BUTTON_PIN, INT_EDGE_FALLING, &myInterrupt) < 0) {
+		syslog(LOG_WARNING, "Unable to setup ISR: %s\n", strerror (errno));
+		return 1 ;
 	}
 	//init start time
 	time(&m_tStart);
 	m_ullTStart = unixtime_sec();
 	//frama
 
-	freopen( "/dev/null", "r", stdin);
-	freopen( "/dev/null", "w", stdout);
-	freopen( "/dev/null", "w", stderr);
-
-	FILE* devnull = NULL;
-	devnull = fopen("/dev/null", "w+");
-
 	setlogmask(LOG_UPTO(LOG_INFO));
 	openlog(DAEMON_NAME, LOG_CONS | LOG_PERROR, LOG_USER);
-	syslog ( LOG_INFO, "S0/Impulse to Volkszaehler RaspberryPI deamon %s.%s", DAEMON_VERSION, DAEMON_BUILD );
+	syslog ( LOG_INFO, "S0/Impulse to Volkszaehler RaspberryPI daemon %s.%s", DAEMON_VERSION, DAEMON_BUILD );
 	cfile();
 	char pid_file[16];
 	sprintf ( pid_file, "/tmp/%s.pid", DAEMON_NAME );
 	daemonize( "/tmp/", pid_file );
-	char buffer[BUF_LEN];
-	struct pollfd fds[inputs];
 
-	curl_global_init(CURL_GLOBAL_ALL);
-	multihandle = curl_multi_init();
-
-	for (i=0; i<inputs; i++) {
-		snprintf ( buffer, BUF_LEN, "/sys/class/gpio/gpio%d/value", gpio_pin_id[i] );
-		if((fds[i].fd = open(buffer, O_RDONLY|O_NONBLOCK)) == 0) {
-			syslog(LOG_INFO,"Error:%s (%m)", buffer);
-			exit(1);
-		}
-
-		fds[i].events = POLLPRI;
-		fds[i].revents = 0;
-
-		easyhandle[i] = curl_easy_init();
-
-		curl_easy_setopt(easyhandle[i], CURLOPT_URL, url);
-		curl_easy_setopt(easyhandle[i], CURLOPT_POSTFIELDS, "");
-		curl_easy_setopt(easyhandle[i], CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION );
-		curl_easy_setopt(easyhandle[i], CURLOPT_WRITEDATA, devnull);
-		curl_easy_setopt(easyhandle[i], CURLOPT_ERRORBUFFER, errorBuffer);
-
-		curl_multi_add_handle(multihandle, easyhandle[i]);
-
-	}
-
+	freopen( "/dev/null", "r", stdin);
+	freopen( "/dev/null", "w", stdout);
+	freopen( "/dev/null", "w", stderr);
+	devnull = fopen("/dev/null", "w+");
+  
+	curl_global_init(CURL_GLOBAL_ALL); 
+/*	
+  easyhandle[0] = curl_easy_init();
+	curl_easy_setopt(easyhandle[0], CURLOPT_URL, url);
+	curl_easy_setopt(easyhandle[0], CURLOPT_POSTFIELDS, "");
+	curl_easy_setopt(easyhandle[0], CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION );
+	curl_easy_setopt(easyhandle[0], CURLOPT_WRITEDATA, devnull);
+	curl_easy_setopt(easyhandle[0], CURLOPT_ERRORBUFFER, errorBuffer);
+*/
+	int myCounter = 0 ;
+	int iImpCount = 0;
+	int iTest = 0;
+	int iPower = 0;
+	int diff = 0;
 	for ( ;; ) {
-		if((multihandle_res = curl_multi_perform(multihandle, &running_handles)) != CURLM_OK) {
-  		if (m_debug > 0) {	                          
-        syslog(LOG_INFO, "HTTP_POST(): %s", curl_multi_strerror(multihandle_res) );
-      }   
-		}
-
-		int ret = poll(fds, inputs, 1000);
-		if(ret>0) {
-			for (i=0; i<inputs; i++) {
-				if (fds[i].revents & POLLPRI) {
-					len = read(fds[i].fd, buffer, BUF_LEN);
-//					update_curl_handle(vzuuid[i], i, cEMPTY);
-					iImpCount[i]++;
-//					syslog(LOG_INFO, "counted impulse: %d, Index: %d", iImpCount[i], i);
-					iTest++;
-					if (iTest >= 100) {
-						iTest = 0;
-						if (m_debug > 0) {					
-							syslog(LOG_INFO, "%d signal's received, -> still alive ", iTest);//frama
-						}
-					}
+		if (myCounter != globalCounter){
+			diff = globalCounter - myCounter;
+			myCounter = globalCounter;			
+			if (diff != 1) {
+				syslog(LOG_WARNING, " diff isn't 1 --> %d", diff); 
+			}
+			iImpCount++;
+			if (m_debug > 2) {					
+				syslog(LOG_INFO, "new impulse: %d", iImpCount);
+			}
+			iTest++;
+			if (iTest >= 100) {
+				iTest = 0;
+				if (m_debug > 0) {					
+					syslog(LOG_INFO, "%d signal's received, -> still alive ", iTest);//frama
 				}
-			}
+			}  
 		}
-		//frama
+    
 		if ((m_updateTime > 0) && checkTime()) {
-			for (iRun=0; iRun<inputs; iRun++) {
-				iPower = calcPower(iImpCount[iRun]);
-				if (m_debug > 2) {
-          syslog(LOG_INFO, "counted impulse: %d, calculated Power: %d, Index: %d", iImpCount[iRun], iPower, iRun);
-        }
-				update_curl_handle(vzuuid[iRun], iRun, iPower);
-				//reset counter
-				iImpCount[iRun] = 0;
+			iPower = calcPower(iImpCount);
+			if (m_debug > 2) {
+				syslog(LOG_INFO, "counted impulse: %d, calculated Power: %d", iImpCount, iPower);
 			}
-			m_once = 0;//only first value's in syslog
+			update_curl_handle(vzuuid[0], iPower);
+			//reset counter
+			iImpCount = 0;
 		}
-		//frama
+    m_once = 0;//only first value's in syslog
+    if (m_debug > 2){
+      syslog(LOG_INFO, "waiting ...");      
+    }
+	    delay (100);
 	}
 	curl_global_cleanup();
-return 0;
+  return 0;
 }//main_end
 
 /*****************************************
@@ -403,10 +452,8 @@ int calcPower( int iImpCount)	{
 		iPower = (3600 * iImpCount)/ m_updateTime;
     if (iPower < 0) iPower = 0;//at startup a neg. value is calculated, why???
 	}
-
 	return iPower;
 }
-
 /*
 	check the time difference between the calls
 	when the diff is bigger than the time setted in the config file, trigger curl
@@ -415,11 +462,11 @@ int calcPower( int iImpCount)	{
 */
 bool checkTime (void) {
 	int  iDiff;
-	m_ullTEnd = unixtime_sec();
-	iDiff = (int) (m_ullTEnd - m_ullTStart);
-	if (m_debug > 2) {	
-		syslog(LOG_INFO, "Startzeit: %llu, EndZeit: %llu, Differenz : %d",m_ullTStart, m_ullTEnd, iDiff);
-  }
+	unsigned long long ullTEnd = unixtime_sec();
+	iDiff = (int) (ullTEnd - m_ullTStart);
+	if (m_debug > 3) {	
+		;//syslog(LOG_INFO, "Startzeit: %llu, EndZeit: %llu, Differenz : %d",m_ullTStart, ullTEnd, iDiff);
+	}
 	if (iDiff >= m_updateTime) {
     if (m_debug > 2) {	
       syslog(LOG_INFO, "Es sind %d Sekunden vergangen, --> trigger Curl.", iDiff);
