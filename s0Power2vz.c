@@ -503,11 +503,8 @@ void writeCurlFailure2Log(const char *command ) {
   fclose(fptr);
 }
 
-/*
-	
-*/
 /**
- * @brief read from 'errorlog' and send data 
+ * @brief read from failurelog and send data 
  * 
  */
 void readCurlFailure2Log() {
