@@ -9,8 +9,9 @@ changed by Martin Fragner <frama1038@gmail.com>
 this is a fork from https://github.com/w3llschmid/s0vz.git
 
 **************************************************************************/
+
 #define DAEMON_NAME "s0Power2vz"
-#define DAEMON_VERSION "1.0.1-wiringPi"
+#define DAEMON_VERSION "1.0.0-wiringPi"
 #define DAEMON_BUILD "4"
 
 /**************************************************************************
@@ -51,6 +52,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <wiringPi.h>
 
+
 #define BUF_LEN 64
 
 // What GPIO input are we using?, See http://wiringpi.com/pins/
@@ -61,10 +63,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 void daemonShutdown();
 void signal_handler(int sig);
 void daemonize(char *rundir, char *pidfile);
-void writeCurlFailure2Log(const char *command );
-void readCurlFailure2Log();
-bool failure2LogExits();
-char *getMyLine(FILE *f);
 
 int pidFilehandle, vzport, i, len, running_handles, rc;
 
@@ -102,7 +100,6 @@ int calcPower( int iImpCount);
 unsigned long long unixtime_sec(void);
 const int CMAXINPUTS = 5; //5 inputs supportet
 int m_once = 1;
-bool bCurlFailure = false;
 /***********************************************+*/
 // globalCounter:
 //	Global variable to count interrupts
@@ -120,28 +117,39 @@ void myInterrupt (void)
 
 
 void myPoll (void){
-	struct pollfd fds[1];
-	char buffer[BUF_LEN];
-	int iImpCount=0;
-	snprintf ( buffer, BUF_LEN, "/sys/class/gpio/gpio%d/value", gpio_pin_id[i] );
-	if((fds[0].fd = open(buffer, O_RDONLY|O_NONBLOCK)) == 0) {
+  struct pollfd fds[1];
+  char buffer[BUF_LEN];
+  int iImpCount;
+  snprintf ( buffer, BUF_LEN, "/sys/class/gpio/gpio%d/value", gpio_pin_id[i] );
+  if((fds[0].fd = open(buffer, O_RDONLY|O_NONBLOCK)) == 0) {
 			syslog(LOG_INFO,"Error:%s (%m)", buffer);
 			exit(1);
-	}  
+		}
+  
+  
     fds[0].events = POLLPRI;
-    fds[0].revents = 0;    
+    fds[0].revents = 0;
+    
     int ret = poll(fds, inputs, 1000);
     if(ret>0) {
-		if (fds[0].revents & POLLPRI) {
-						len = read(fds[0].fd, buffer, BUF_LEN);
-	//					update_curl_handle(vzuuid[i], i, cEMPTY);
-						iImpCount++;
-		}
-	}
+    if (fds[0].revents & POLLPRI) {
+					len = read(fds[0].fd, buffer, BUF_LEN);
+//					update_curl_handle(vzuuid[i], i, cEMPTY);
+					iImpCount++;
+      }
+    }
 }
+/*
+ *********************************************************************************
+ * main
+ *********************************************************************************
+ */
+
+
 
 /**/
 void signal_handler(int sig) {
+
 	switch(sig)
 	{
 		case SIGHUP:
@@ -160,8 +168,8 @@ void signal_handler(int sig) {
 }
 
 void daemonShutdown() {
-	close(pidFilehandle);
-	char pid_file[22];
+  close(pidFilehandle);
+	char pid_file[16];
 	sprintf ( pid_file, "/tmp/%s.pid", DAEMON_NAME );
 	remove(pid_file);
 }
@@ -314,6 +322,7 @@ unsigned long long unixtime() {
   return ms_timestamp;
 }
 
+
 void update_curl_handle(const char *vzuuid, int iVal) {
   if (iVal == cEMPTY) {
     sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu", vzserver, vzport, vzpath, vzuuid, unixtime());
@@ -327,27 +336,26 @@ void update_curl_handle(const char *vzuuid, int iVal) {
   
   CURLcode res;
   CURL *curl = curl_easy_init();
+  
+  
+
   if(curl) {    
     curl_easy_setopt(curl, CURLOPT_URL, url);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION );
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, devnull);
-	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION );
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, devnull);
+		curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
     //curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.24.120:80/volkszaehler/htdocs/middleware.php/data/fd3aec80-ed45-11e3-834a-11f2a80cada3.json?ts=1636135781457&value=60");
     res = curl_easy_perform(curl);
     /* Check for errors */
     if(res != CURLE_OK) {
       fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-	  writeCurlFailure2Log(url);
-	  bCurlFailure = true;
     } else {
-		//when it works again, send the missed values
-		if (bCurlFailure) {
-			readCurlFailure2Log();
-			bCurlFailure = false;
-		}
-    	if (m_debug > 2 ) syslog(LOG_INFO, "curl sucessfully");  
-    }              
+      if (m_debug > 2 ) {
+        syslog(LOG_INFO, "curl sucessfully");  
+      }
+    }
+              
     curl_easy_cleanup(curl);
   } else {
     syslog(LOG_PERROR, "ERROR curl not ready"); 
@@ -357,19 +365,22 @@ void update_curl_handle(const char *vzuuid, int iVal) {
     syslog(LOG_INFO, "update_curl_handle: iVal = : %i",iVal);
   }
 }
-/*********************************************************************************
- * main
- *********************************************************************************/
+
 int main(void) {
 
-	if (wiringPiSetup () < 0)	{    
-		syslog(LOG_WARNING,  "Unable to setup wiringPi: %s\n", strerror (errno));
-		return 1 ;
-	}
-	if (wiringPiISR (BUTTON_PIN, INT_EDGE_FALLING, &myInterrupt) < 0) {
-		syslog(LOG_WARNING, "Unable to setup ISR: %s\n", strerror (errno));
-		return 1 ;
-	}
+ if (wiringPiSetup () < 0)
+  {    
+    syslog(LOG_WARNING,  "Unable to setup wiringPi: %s\n", strerror (errno));
+    return 1 ;
+  }
+
+  if (wiringPiISR (BUTTON_PIN, INT_EDGE_FALLING, &myInterrupt) < 0)
+  {
+    syslog(LOG_WARNING, "Unable to setup ISR: %s\n", strerror (errno));
+    return 1 ;
+  }
+
+
 	//init start time
 	time(&m_tStart);
 	m_ullTStart = unixtime_sec();
@@ -377,71 +388,71 @@ int main(void) {
 
 	setlogmask(LOG_UPTO(LOG_INFO));
 	openlog(DAEMON_NAME, LOG_CONS | LOG_PERROR, LOG_USER);
-	syslog ( LOG_INFO, "S0-Impulse->Power to Volkszaehler RaspberryPI daemon %s.%s", DAEMON_VERSION, DAEMON_BUILD );
+	syslog ( LOG_INFO, "S0/Impulse to Volkszaehler RaspberryPI daemon %s.%s", DAEMON_VERSION, DAEMON_BUILD );
 	cfile();
-	char pid_file[22];
+	char pid_file[16];
 	sprintf ( pid_file, "/tmp/%s.pid", DAEMON_NAME );
 	daemonize( "/tmp/", pid_file );
 
-	freopen( "/dev/null", "r", stdin);
+  freopen( "/dev/null", "r", stdin);
 	freopen( "/dev/null", "w", stdout);
 	freopen( "/dev/null", "w", stderr);
-	devnull = fopen("/dev/null", "w+");
+  devnull = fopen("/dev/null", "w+");
+  
+  curl_global_init(CURL_GLOBAL_ALL);
 
-/*  
-	curl_global_init(CURL_GLOBAL_ALL);
-	multihandle = curl_multi_init(); 
-  	easyhandle[0] = curl_easy_init();
+  
+/*	
+  easyhandle[0] = curl_easy_init();
 	curl_easy_setopt(easyhandle[0], CURLOPT_URL, url);
 	curl_easy_setopt(easyhandle[0], CURLOPT_POSTFIELDS, "");
 	curl_easy_setopt(easyhandle[0], CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION );
 	curl_easy_setopt(easyhandle[0], CURLOPT_WRITEDATA, devnull);
 	curl_easy_setopt(easyhandle[0], CURLOPT_ERRORBUFFER, errorBuffer);
-	curl_multi_add_handle(multihandle, easyhandle[0]);	
 */
-	//check at start if file with missed data is available
- 	if (failure2LogExits()){
-		readCurlFailure2Log();	 
-	}
-	int myCounter = 0 ;
-	int iImpCount = 0;
-	int iTest = 0;
-	int iPower = 0;
-	int diff = 0;
-	for ( ;; ) {	
-		if (myCounter != globalCounter){
-			diff = globalCounter - myCounter;
-			myCounter = globalCounter;			
-			if (diff != 1) {
-				syslog(LOG_WARNING, " diff isn't 1 --> %d", diff); 
-			}
-			iImpCount++;
-			if (m_debug > 2) {					
-				syslog(LOG_INFO, "new impulse: %d", iImpCount);
-			}
-			iTest++;
-			if (iTest >= 100) {
-				iTest = 0;
-				if (m_debug > 0) {					
-					syslog(LOG_INFO, "%d signal's received, -> still alive ", iImpCount);//frama
-				}
-			}  
-		}
+  int myCounter = 0 ;
+  int iImpCount = 0;
+  int iTest = 0;
+  int iPower = 0;
+  int diff = 0;
+	for ( ;; ) {
+    
+
+    
+    if (myCounter != globalCounter){
+      diff = globalCounter - myCounter;
+      myCounter = globalCounter;
+      
+      if (diff != 1) {
+       syslog(LOG_WARNING, " diff isn't 1 --> %d", diff); 
+      }
+      iImpCount++;
+      if (m_debug > 2) {					
+        syslog(LOG_INFO, "new impulse: %d", iImpCount);
+      }
+      iTest++;
+      if (iTest >= 100) {
+        iTest = 0;
+        if (m_debug > 0) {					
+          syslog(LOG_INFO, "%d signal's received, -> still alive ", iTest);//frama
+        }
+      }  
+    }
     
 		if ((m_updateTime > 0) && checkTime()) {
 			iPower = calcPower(iImpCount);
-			if (m_debug > 2) {
-				syslog(LOG_INFO, "counted impulse: %d, calculated Power: %d", iImpCount, iPower);
-			}
-			update_curl_handle(vzuuid[0], iPower);
-			//reset counter
-			iImpCount = 0;
+				if (m_debug > 2) {
+					syslog(LOG_INFO, "counted impulse: %d, calculated Power: %d", iImpCount, iPower);
+				}
+				update_curl_handle(vzuuid[0], iPower);
+				//reset counter
+				iImpCount = 0;
 		}
     m_once = 0;//only first value's in syslog
     if (m_debug > 2){
       syslog(LOG_INFO, "waiting ...");      
     }
-	    delay (100);
+    delay (100);
 	}
 	curl_global_cleanup();
   return 0;
@@ -450,6 +461,7 @@ int main(void) {
 /*****************************************
 * framas functions
 */
+
 /* powermeter has an resolution from 1000 Imp/kWh */
 int calcPower( int iImpCount)	{
 	int iPower = 0;
@@ -460,8 +472,10 @@ int calcPower( int iImpCount)	{
 		iPower = (3600 * iImpCount)/ m_updateTime;
     if (iPower < 0) iPower = 0;//at startup a neg. value is calculated, why???
 	}
+
 	return iPower;
 }
+
 /*
 	check the time difference between the calls
 	when the diff is bigger than the time setted in the config file, trigger curl
@@ -474,7 +488,7 @@ bool checkTime (void) {
 	iDiff = (int) (ullTEnd - m_ullTStart);
 	if (m_debug > 3) {	
 		;//syslog(LOG_INFO, "Startzeit: %llu, EndZeit: %llu, Differenz : %d",m_ullTStart, ullTEnd, iDiff);
-	}
+  }
 	if (iDiff >= m_updateTime) {
     if (m_debug > 2) {	
       syslog(LOG_INFO, "Es sind %d Sekunden vergangen, --> trigger Curl.", iDiff);
@@ -491,115 +505,4 @@ unsigned long long unixtime_sec() {
 	return (unsigned long long)(m_tv2.tv_sec);
 }
 
-void writeCurlFailure2Log(const char *command ) {
-  FILE *fptr;
-  // opening file in append mode
-  fptr = fopen("/var/log/s0Power2vzError.log", "a");
-  if (fptr == NULL) {
-      perror("Couldn't open File");
-      exit(1);
-  }
-  fprintf(fptr, "%s\n", command);
-  fclose(fptr);
-}
 
-/*
-	
-*/
-/**
- * @brief read from 'errorlog' and send data 
- * 
- */
-void readCurlFailure2Log() {
-	FILE *fptr;
-	char *line = NULL;
-	CURLcode res;
-  	CURL *curl = curl_easy_init();
-  	if(!curl) { 
-		syslog(LOG_PERROR, "ERROR curl not ready");
-		return;
-  	}   
-	//init curl paramters
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION " Nachtrag" );
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, devnull);
-	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
-
-	// opening file
-	fptr = fopen("/var/log/s0Power2vzError.log", "r+");
-	if (fptr == NULL) {
-		perror("Couldn't open File");
-		exit(EXIT_FAILURE);
-	}
-	syslog(LOG_INFO,"send missing data via curl");
-	
-	
-    do {        
-        line = getMyLine(fptr);
-        if (line != NULL) {
-			//do something
-			curl_easy_setopt(curl, CURLOPT_URL, line);	
-			res = curl_easy_perform(curl);			
-			/* Check for errors */
-			if(res != CURLE_OK) {
-				syslog(LOG_INFO, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));  
-				fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-			} else {
-				if (m_debug > 2 ) syslog(LOG_INFO, "curl sucessfully %s", url);
-			}		
-			usleep(1000);
-            free(line);
-            line=NULL;
-        } else {
-            break;//leave endless loop
-        }
-    }while (true);
-	curl_easy_cleanup(curl);  
-	//clean up		
-    fclose(fptr);
-    if (line) free(line);
-	ssize_t ret = rename("/var/log/s0Power2vzError.log", "/var/log/s0Power2vzError.done");	
-	if(ret != 0) {
-		syslog(LOG_INFO,"Error: unable to rename the file var/log/s0Power2vzError");
-	}
-}
-
-bool failure2LogExits() {
-	return (access("/var/log/s0Power2vzError.log", F_OK ) != -1);
-}
-
-/**
- * @brief Get the line object, without semicolons and linebreaks
- * 
- * @param f 
- * @return char* 
- */
-char *getMyLine(FILE *f){
-    int i=0, c=1 ;
-    char *word = NULL;
-    char character;
-    const int maxLen = 255;
-    if (c> 1) printf ("-->next run\n");
-    word = malloc (sizeof(char) * maxLen);
-    do {
-        character = getc(f);
-		//when getc get character > 127, the program crashes, why???
-        if (character == EOF || (int)character > 127) {
-           if (word) free(word);
-            word = NULL;
-            break;
-        } 
-        if (i > (maxLen*c)){
-            printf ("word is too long, expand 'memory'\n");
-            c++;
-            word= realloc(word, sizeof(char) * maxLen * c );
-        } 
-        if (character != '\n'){
-            word[i++] = character;
-        } else {
-            word[i++]='\0';
-            break;
-       }        
-    } while (true);
-    return word;
-}
