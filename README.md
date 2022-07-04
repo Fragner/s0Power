@@ -78,6 +78,10 @@ sudo systemctl enable s0Power2vz.service (make deamon autostart)
 sudo systemctl start s0Power2vz.service
 ```
 
+Verdrahtung
+=============
+
+![Schema] (/wiring.jpg)
 
 License
 =======
