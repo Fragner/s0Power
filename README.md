@@ -60,11 +60,10 @@ Download: 'sudo git clone https://github.com/fragner/s0Power2vz /usr/local/src/s
 
 s0Power2vz.c	-> 'sudo gcc -o /usr/local/sbin/s0Power2vz /usr/local/src/s0Power2vz/s0Power2vz.c -lconfig -lcurl'
 or ./compile.sh
-
-s0Power2vz.cfg	-> /etc/  
-
-s0Power2vz.service	-> /etc/systemd/system/
-
+```
+sudo cp s0Power2vz.cfg /etc/
+sudo cp s0Power2vz.service	/etc/systemd/system/
+```
 
 Configuration
 =============
@@ -81,8 +80,22 @@ sudo systemctl start s0Power2vz.service
 Verdrahtung
 =============
 
-![Schema] (/wiring.jpg)
+![Schema](wiring.jpg)
 
+BullsEye
+============
+In the "actual" version from  Raspbios BullsEye is wiringpi not longer included.
+So the package must installed manually, or the application must be changed to use an other standard library like [pigpio](http://abyz.me.uk/rpi/pigpio/index.html).
+
+```
+cd /tmp
+wget https://project-downloads.drogon.net/wiringpi-latest.deb
+sudo dpkg -i wiringpi-latest.deb
+```
+Check with:
+```
+gpio -v
+```
 License
 =======
 This is a fork from https://github.com/w3llschmidt/s0vz
