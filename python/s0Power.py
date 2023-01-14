@@ -35,7 +35,6 @@ DEBUG = 4
 # active verbose level
 #******************************************#
 verbose = INFO
-
 #******************************************#
 #print to console, in the future to an logfile
 #******************************************#
@@ -46,43 +45,41 @@ def myPrint(level, text):
 #************************************************#
 # powermeter has an resolution from 1000 Imp/kWh
 #************************************************#
-def calcPower (iImpCount):
+def calcPower ():
+    global count
     iPower = 0
-    if (iImpCount > 0):
-        iPower = (3600 * iImpCount)/ UPDATE_TIME        
-    if (iPower < 0):
-        iPower = 0
+    if (count > 0):
+        iPower = (3600 * count)/ UPDATE_TIME
+        if (iPower < 0):
+            iPower = 0
     if verbose > 2:
-        myLog.syslog(myLog.LOG_INFO, "calcPower: trigger = " + str(iImpCount) +" updateTime = " + str(UPDATE_TIME) + "s power= " + str(iPower) + "W")
+        myLog.syslog(myLog.LOG_INFO, "calcPower: trigger = " + str(count) +" updateTime = " + str(UPDATE_TIME) + "s power= " + str(iPower) + "W")
     return iPower
 
+#************************************************#
+# keep alive entry in syslog
+#************************************************#
 def keepAlive():
     global ikeepAlive
     ikeepAlive+=1
     if (ikeepAlive >= keepAliveDetected):
         ikeepAlive = 0
         if (verbose > 0):
-            myLog.syslog(myLog.LOG_INFO, str(keepAliveDetected) + " signal's received, -> still alive ")
+            myLog.syslog(myLog.LOG_INFO, str(keepAliveDetected) + " signal's received -> still alive ")
 
 #************************************************#
 # main routine
 #************************************************#
 def main():
-    global count
     try:
         while True:
             start = time.time()
-            while True:
-                time.sleep(10)
-                time_diff = time.time() - start                
-                myPrint (DEBUG, "Seconds= " + str(time_diff))
-                if (time_diff >= UPDATE_TIME):
-                    break
-            myPrint (DEBUG, "one min passed with " + str(count) + " triggers")
-            power=calcPower(count)
+            time.sleep(UPDATE_TIME)
+            time_diff = time.time() - start
+            myPrint (DEBUG, "Seconds= " + str(time_diff))
+            power=calcPower()
             myPrint(INFO, "Power= " + str(power) + " W")
-            #update influxdb with power value            
-            count=0
+            #update influxdb with power value
     except KeyboardInterrupt:
         myPrint(0, "\nscript stopped")
         myLog.syslog(myLog.LOG_INFO, "s0Power.py stopped ")
@@ -110,5 +107,10 @@ def configureInput():
     # else is happening in the program, the function "my_callback" will be run  
     GPIO.add_event_detect(INPUTNR, GPIO.FALLING, callback=edgeDetected)
 
-configureInput()
-main()
+#If this file is being imported from another module, __name__ will be set to the module’s name.
+#__name__ is a built-in variable which evaluates to the name of the current module.
+# Using the special variable
+# __name__
+if __name__=="__main__":
+    configureInput()
+    main()
