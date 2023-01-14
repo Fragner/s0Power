@@ -54,6 +54,7 @@ def calcPower ():
             iPower = 0
     if verbose > 2:
         myLog.syslog(myLog.LOG_INFO, "calcPower: trigger = " + str(count) +" updateTime = " + str(UPDATE_TIME) + "s power= " + str(iPower) + "W")
+    count = 0
     return iPower
 
 #************************************************#
