@@ -29,6 +29,31 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Raspberry pi preparation
 ============
+## BullsEye
+
+In the "actual" version from  Raspbian BullsEye is wiringpi not longer included.<br>
+So the package must be installed manually, or the application must be changed to use an other standard library like [pigpio](http://abyz.me.uk/rpi/pigpio/index.html).
+
+```
+cd /tmp
+wget https://project-downloads.drogon.net/wiringpi-latest.deb
+sudo dpkg -i wiringpi-latest.deb
+```
+Check with:
+```
+gpio -v
+```
+### Configure GPIO as input<br>
+```
+sudo raspi-gpio set 2 ip
+```
+with "sudo raspi-gpio get 2" the setting from the GPIO can checked<br>
+sample output:
+
+```GPIO 2: level=1 fsel=0 func=INPUT```
+
+
+## Before BullsEye
 ### Configure GPIO as input<br>
 At first it must created<br>
 eg GPIO2:
@@ -52,19 +77,28 @@ Installation
 
 Precondition: Raspian Linux (http://www.raspberrypi.org/downloads) 
 
-Binding libraries: libcurl & libconfig -> 'sudo apt-get install libcurl4-gnutls-dev libconfig-dev'
+Binding libraries: libcurl & libconfig -> install
+```
+sudo apt install libcurl4-gnutls-dev libconfig-dev
+```
+Download and create local git repo: 
+```
+sudo git clone https://github.com/fragner/s0Power2vz /usr/local/src/s0Power2vz'
+```
 
-Download: 'sudo git clone https://github.com/fragner/s0Power2vz /usr/local/src/s0Power2vz'
-
----
-
-s0Power2vz.c	-> 'sudo gcc -o /usr/local/sbin/s0Power2vz /usr/local/src/s0Power2vz/s0Power2vz.c -lconfig -lcurl'
-or ./compile.sh
-
-s0Power2vz.cfg	-> /etc/  
-
-s0Power2vz.service	-> /etc/systemd/system/
-
+### compile
+```
+sudo gcc -o /usr/local/sbin/s0Power2vz /usr/local/src/s0Power2vz/s0Power2vz.c -lconfig -lcurl
+```
+or 
+```
+sudo ./compile.sh
+```
+### copy the config and service files
+```
+sudo cp s0Power2vz.cfg /etc/
+sudo cp s0Power2vz.service	/etc/systemd/system/
+```
 
 Configuration
 =============
@@ -78,6 +112,10 @@ sudo systemctl enable s0Power2vz.service (make deamon autostart)
 sudo systemctl start s0Power2vz.service
 ```
 
+Verdrahtung
+=============
+
+![Schema](wiring.jpg)
 
 License
 =======
