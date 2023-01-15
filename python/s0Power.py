@@ -6,6 +6,8 @@ import RPi.GPIO as GPIO
 import time
 import syslog as myLog
 import datetime
+import sendPower2Influxdb
+import sendPower2VZ
 
 """"
 syslog.syslog(syslog.LOG_ERR, "A message with LOG_ERR priority.")
@@ -34,7 +36,7 @@ DEBUG = 4
 #******************************************#
 # active verbose level
 #******************************************#
-verbose = INFO
+verbose = 4
 #******************************************#
 #print to console, in the future to an logfile
 #******************************************#
@@ -80,6 +82,8 @@ def main():
             myPrint (DEBUG, "Seconds= " + str(time_diff))
             power=calcPower()
             myPrint(INFO, "Power= " + str(power) + " W")
+            sendPower2Influxdb.sendPower(power, "consume")
+            sendPower2VZ.sendPower(power)
             #update influxdb with power value
     except KeyboardInterrupt:
         myPrint(0, "\nscript stopped")
