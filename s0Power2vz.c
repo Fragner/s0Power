@@ -10,7 +10,7 @@ this is a fork from https://github.com/w3llschmid/s0vz.git
 
 **************************************************************************/
 #define DAEMON_NAME "s0Power2vz"
-#define DAEMON_VERSION "1.0.1-wiringPi"
+#define DAEMON_VERSION "1.0.2 - wiringPi"
 #define DAEMON_BUILD "4"
 
 /**************************************************************************
@@ -315,47 +315,52 @@ unsigned long long unixtime() {
 }
 
 void update_curl_handle(const char *vzuuid, int iVal) {
-  if (iVal == cEMPTY) {
-    sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu", vzserver, vzport, vzpath, vzuuid, unixtime());
-  }
-  else {
-    sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu&value=%d", vzserver, vzport, vzpath, vzuuid, unixtime(), iVal);
-  }
-  if (m_debug > 1) {                   
-    syslog ( LOG_INFO, "send to this url:  %s", url );
-  }
-  
-  CURLcode res;
-  CURL *curl = curl_easy_init();
-  if(curl) {    
-    curl_easy_setopt(curl, CURLOPT_URL, url);
+	if (iVal == 0){
+		syslog ( LOG_WARNING, "s0Power2VZ value is 0");
+		return;
+	}
+	
+	if (iVal == cEMPTY) {
+		sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu", vzserver, vzport, vzpath, vzuuid, unixtime());
+	}
+	else {
+		sprintf(url, "http://%s:%d/%s/data/%s.json?ts=%llu&value=%d", vzserver, vzport, vzpath, vzuuid, unixtime(), iVal);
+	}
+	if (m_debug > 1) {                   
+		syslog ( LOG_INFO, "send to this url:  %s", url );
+	}
+
+	CURLcode res;
+	CURL *curl = curl_easy_init();
+	if(curl) {    
+	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, DAEMON_NAME " " DAEMON_VERSION );
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, devnull);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
-    //curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.24.120:80/volkszaehler/htdocs/middleware.php/data/fd3aec80-ed45-11e3-834a-11f2a80cada3.json?ts=1636135781457&value=60");
-    res = curl_easy_perform(curl);
-    /* Check for errors */
-    if(res != CURLE_OK) {
-      fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-	  writeCurlFailure2Log(url);
-	  bCurlFailure = true;
-    } else {
+	//curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.24.120:80/volkszaehler/htdocs/middleware.php/data/fd3aec80-ed45-11e3-834a-11f2a80cada3.json?ts=1636135781457&value=60");
+	res = curl_easy_perform(curl);
+	/* Check for errors */
+	if(res != CURLE_OK) {
+		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+		writeCurlFailure2Log(url);
+		bCurlFailure = true;
+	} else {
 		//when it works again, send the missed values
 		if (bCurlFailure) {
 			readCurlFailure2Log();
 			bCurlFailure = false;
 		}
-    	if (m_debug > 2 ) syslog(LOG_INFO, "curl sucessfully");  
-    }              
-    curl_easy_cleanup(curl);
-  } else {
-    syslog(LOG_PERROR, "ERROR curl not ready"); 
-  }
-  
-  if (m_once > 0){
-    syslog(LOG_INFO, "update_curl_handle: iVal = : %i",iVal);
-  }
+		if (m_debug > 2 ) syslog(LOG_INFO, "curl sucessfully");  
+	}              
+	curl_easy_cleanup(curl);
+	} else {
+		syslog(LOG_PERROR, "ERROR curl not ready"); 
+	}
+
+	if (m_once > 0){
+		syslog(LOG_INFO, "update_curl_handle: iVal = : %i",iVal);
+	}
 }
 /*********************************************************************************
  * main
