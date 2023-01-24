@@ -1,0 +1,8 @@
+[vz]
+# Hostaddress WITH port, FQDN or IP of your VZ - normaly this should be 'http://localhost:80'
+server = "http://localhost:80"
+# Path to the VZ middleware.php script, WITH preposed and trailing slash */
+path = "middleware.php";
+#channel
+ # power consumption
+channel = "fd3aec80-ed45-11e3-834a-11f2a80cada3"

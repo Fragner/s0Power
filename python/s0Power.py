@@ -4,20 +4,16 @@
 
 import RPi.GPIO as GPIO
 import time
-import syslog as myLog
+import syslog as mySysLog
 import datetime
+#myVerbose must be the first import
+from myVerbose import *
 import sendPower2Influxdb
 import sendPower2VZ
 
-""""
-syslog.syslog(syslog.LOG_ERR, "A message with LOG_ERR priority.")
-syslog.syslog(syslog.LOG_WARNING, "A message with LOG_WARNING priority.")
-syslog.syslog(syslog.LOG_NOTICE, "A message with LOG_NOTICE priority.")
-syslog.syslog(syslog.LOG_INFO, "A message with LOG_INFO priority.")
-syslog.syslog(syslog.LOG_DEBUG, "A message with LOG_DEBUG priority.")
-"""
-myLog.syslog(myLog.LOG_INFO, "s0Power.py started")
 
+mySysLog.syslog(mySysLog.LOG_INFO, "s0Power.py started")
+myPrint(STARTUP,"s0Power.py with Debuglevel= '" + getVerboseName(getVerbose()) +"' started")
 #******************************************#
 # global variables
 #******************************************#
@@ -27,22 +23,15 @@ count=0
 ikeepAlive = 0
 keepAliveDetected = 100
 #******************************************#
-# defined vebose level
-#******************************************#
-ERROR = 1
-WARN = 2
-INFO = 3
-DEBUG = 4
-#******************************************#
 # active verbose level
 #******************************************#
-verbose = 4
+verbose = getVerbose()
 #******************************************#
 #print to console, in the future to an logfile
 #******************************************#
-def myPrint(level, text):
-    if verbose >= level:
-        print(str(datetime.datetime.now()) + " - " + text)
+#def myPrint(level, text):
+#    if verbose >= level:
+#        print(str(datetime.datetime.now()) + " - " + text)
 
 #************************************************#
 # powermeter has an resolution from 1000 Imp/kWh
@@ -55,7 +44,7 @@ def calcPower ():
         if (iPower < 0):
             iPower = 0
     if verbose > 2:
-        myLog.syslog(myLog.LOG_INFO, "calcPower: trigger = " + str(count) +" updateTime = " + str(UPDATE_TIME) + "s power= " + str(iPower) + "W")
+        mySysLog.syslog(mySysLog.LOG_INFO, "calcPower: trigger = " + str(count) +" updateTime = " + str(UPDATE_TIME) + "s power= " + str(iPower) + "W")
     count = 0
     return iPower
 
@@ -68,7 +57,7 @@ def keepAlive():
     if (ikeepAlive >= keepAliveDetected):
         ikeepAlive = 0
         if (verbose > 0):
-            myLog.syslog(myLog.LOG_INFO, str(keepAliveDetected) + " signal's received -> still alive ")
+            mySysLog.syslog(mySysLog.LOG_INFO, str(keepAliveDetected) + " signal's received -> still alive ")
 
 #************************************************#
 # main routine
@@ -86,9 +75,8 @@ def main():
             sendPower2VZ.sendPower(power)
             #update influxdb with power value
     except KeyboardInterrupt:
-        myPrint(0, "\nscript stopped")
-        myLog.syslog(myLog.LOG_INFO, "s0Power.py stopped ")
-
+        myPrint(WARN, "s0Power.py stopped")
+        mySysLog.syslog(mySysLog.LOG_WARNING, "s0Power.py stopped ")
 
 #************************************************#
 # define the threaded callback function

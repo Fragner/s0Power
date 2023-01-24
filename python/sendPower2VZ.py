@@ -7,60 +7,63 @@
 import requests
 from time import time
 import sys
+import os
+from configparser import ConfigParser
 import inputArgs
+from myVerbose import *
 
 
-user_agent="s0Power2vz.py 0.1 - smarthome"
+user_agent="s0Power.py 0.3 - smarthome"
 
-debug= 0
-milliseconds = int(time() * 1000)
-#print("now= "+ str(milliseconds))
+#As initialized upon program startup, the first item of this list, path[0], is the directory containing the script that was used to invoke the Python interpreter
+os.chdir(sys.path[0])
 #************************************************#
-# definitions --> ToDo: move to an ini file
+# definitions from ini file
 #************************************************#
-# Hostaddress WITH port, FQDN or IP of your VZ - normaly this should be 'http://localhost:80'
-server = "http://192.168.24.120:80"# --> send it to a remote host
-# Path to the VZ middleware.php script, WITH preposed and trailing slash */
-#path = "middleware.php";
-path = "/volkszaehler/htdocs/middleware.php/";
-#channel
-channel = "fd3aec80-ed45-11e3-834a-11f2a80cada3" # power consumption
-#************************************************#
-#************************************************#
-def setDebug():
-    global debug
-    debug = 1
+config = ConfigParser()
+iniFile= 'power2VZ.ini'
+config.read(iniFile)
+server = config.get('vz','server')
+path = config.get('vz', 'path')
+channel = config.get('vz','channel')
 
-def myPrint(text):
-	if debug:
-		print(text)
-
+printConfig(iniFile, config)
+#myPrint(STARTUP, "ini-File :  " + iniFile)
+#myPrint(INFO,"Sections: " + config.sections())
+#for each_section in config.sections():
+#    myPrint(STARTUP, "Section:=" + each_section)
+#    for (each_key, each_val) in config.items(each_section):
+#        myPrint(STARTUP, each_key + "= " + each_val)
+ 
 #************************************************#
 # send power via curl post to vz
 #************************************************#
 def sendPower(value):
-    url = server + path + "data/" + channel+ ".json?ts="+ str(milliseconds)+ "&value=" + str(value)
+    milliseconds = int(time() * 1000)
+    iValue = int(value)
+    url = server + path + "data/" + channel+ ".json?ts="+ str(milliseconds)+ "&value=" + str(iValue)
     headers = {
     'User-Agent': user_agent
     }
     resp = requests.post(url,headers=headers)
-    myPrint (resp.status_code)
-    myPrint (resp.content)
-    myPrint (resp)
+    if (resp.status_code == 200):
+        myPrint(INFO, "write to volkzszaehler successfully = " + str(url))
+    myPrint (DEBUG, resp.status_code)
+    myPrint (DEBUG, resp.content)
+    myPrint (DEBUG, resp)
 
 #************************************************#
 # main routine
 #************************************************#
 def main():
-    global debug
     if inputArgs.inputArgs.verbose is None:
-        setDebug()
+        setDebug(inputArgs.inputArgs.verbose)
     if inputArgs.inputArgs.force is not None:
-        myPrint("force is active")
+        myPrint(DEBUG, "force is active")
         sendPower(inputArgs.inputArgs.force)
-        myPrint("finished")
+        myPrint(INFO, "finished")
     else:
-        myPrint("noting to do")
+        myPrint(INFO,"noting to do")
 #    value= 880
  #   if (len(sys.argv) > 1):
 #        value= sys.argv[1]
@@ -70,5 +73,5 @@ def main():
 # call main only, when file started alone --> eg, by cli
 # not when imported into an other file
 #************************************************#
-if __name__=="__main__":    
+if __name__=="__main__":
     main()
