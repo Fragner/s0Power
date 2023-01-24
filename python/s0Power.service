@@ -1,0 +1,23 @@
+#https://computingforgeeks.com/how-to-run-systemd-service-without-root-sudo/
+[Unit]
+Description= (Python) S0/Impulse->Power to Volkszaehler/InfluxDB
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+
+[Service]
+Type=simple
+User=smarthome
+Group=smarthome
+RemainAfterExit=yes
+#StartLimitIntervalSec=300
+StartLimitBurst=10
+ExecStart=sudo /usr/bin/python3 /usr/local/src/s0Power2vz/python/s0Power.py
+TimeoutStartSec=0
+KillSignal=SIGINT
+Restart=always
+RestartSec=30s
+
+[Install]
+WantedBy=default.target
