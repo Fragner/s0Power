@@ -1,0 +1,7 @@
+# ignore ALL .log files
+*.log
+# ingore ini-files
+config/power2Influxdb.ini
+config/power2VZ.ini
+#
+src/__pycache__/
