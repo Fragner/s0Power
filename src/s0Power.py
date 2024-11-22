@@ -63,6 +63,9 @@ def keepAlive():
 # main routine
 #************************************************#
 def main():
+    script=os.path.basename(__file__).split('.')[0]
+    myPrint(STARTUP, (script + " is started"))
+
     try:
         while True:
             start = time.time()
@@ -75,8 +78,8 @@ def main():
             sendPower2VZ.sendPower(power)
             #update influxdb with power value
     except KeyboardInterrupt:
-        myPrint(WARN, "s0Power.py stopped")
-        mySysLog.syslog(mySysLog.LOG_WARNING, "s0Power.py stopped ")
+        myPrint(WARN, (script + " stopped"))
+        mySysLog.syslog(mySysLog.LOG_WARNING, "s0Power.py stopped ")        
 
 #************************************************#
 # define the threaded callback function

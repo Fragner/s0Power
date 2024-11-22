@@ -16,18 +16,14 @@ from configparser import ConfigParser
 from myVerbose import *
 
 
+iniFile= 'config/power2Influxdb.ini'
 
 #************************************************#
 # definitions from ini file
 # InfluxDB Connection Details
 #************************************************#
-os.chdir(sys.path[0])
-config = ConfigParser()
-if (os.path.isfile("power2Influxdb.ini")):
-    iniFile = "power2Influxdb.ini"
-else:
-    iniFile = "power2Influxdb.ini.default"
-config.read(iniFile)
+config = load_config(iniFile)
+
 server = config.get('influx','server')
 port = config.get('influx', 'port')
 user = config.get('influx','user')

@@ -13,20 +13,16 @@ import inputArgs
 from myVerbose import *
 
 
-user_agent="s0Power.py 0.3 - smarthome"
+user_agent="s0Power.py 1.0 - smarthome"
+iniFile= 'config/power2VZ.ini'
 
-#As initialized upon program startup, the first item of this list, path[0], is the directory containing the script that was used to invoke the Python interpreter
-os.chdir(sys.path[0])
 #************************************************#
-# definitions from ini file
+# ini file
 #************************************************#
-config = ConfigParser()
-iniFile= 'power2VZ.ini'
-config.read(iniFile)
+config = load_config(iniFile)
 server = config.get('vz','server')
 path = config.get('vz', 'path')
 channel = config.get('vz','channel')
-
 printConfig(iniFile, config)
 #myPrint(STARTUP, "ini-File :  " + iniFile)
 #myPrint(INFO,"Sections: " + config.sections())
@@ -57,7 +53,7 @@ def sendPower(value):
 #************************************************#
 def main():
     if inputArgs.inputArgs.verbose is None:
-        setDebug(inputArgs.inputArgs.verbose)
+        setVerbose(inputArgs.inputArgs.verbose)
     if inputArgs.inputArgs.force is not None:
         myPrint(DEBUG, "force is active")
         sendPower(inputArgs.inputArgs.force)

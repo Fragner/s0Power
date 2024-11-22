@@ -14,7 +14,9 @@ DEBUG = 4
 
 
 verbose= 0
-os.chdir(sys.path[0])
+#with starting / !!!
+iniFile= 'config/verbose.ini'
+
 #************************************************#
 #
 #************************************************#
@@ -31,6 +33,36 @@ def getVerboseName(level):
         levelName = "WARN"
     return levelName
 
+#************************************************#
+#https://www.iditect.com/faq/python/how-to-load-relative-config-file-using-configparser-from-subdirectory.html
+#************************************************#
+def load_config(relative_path):
+    #full_path = os.path.realpath(__file__)
+    #print("load_config " + full_path)
+    
+    path = os.path.dirname(os.path.abspath(__file__))
+    #print(path)
+    os.chdir(path)
+
+    #os.chdir(sys.path[0])
+    #print(os.getcwd())
+    #go "up", away from src
+    os.chdir('../')
+    #print(os.getcwd())
+    config = ConfigParser()
+    file_path = os.path.join(os.getcwd(), relative_path)
+    #print(file_path)    
+
+    if (os.path.isfile(file_path)):
+        config.read(file_path)
+    elif os.path.isfile(file_path+".default"):
+        myPrint(WARN, "default ini-file used: " + relative_path+".default") 
+        config.read(file_path+".default")
+    else:
+        myPrint(ERROR, "ini-file not found: " + relative_path) 
+        sys.exit(-1)       
+    
+    return config
 #************************************************#
 #
 #************************************************#
@@ -86,9 +118,8 @@ def getLogLevel(level):
 #************************************************#
 # definitions from ini file
 #************************************************#
-config = ConfigParser()
-iniFile= 'verbose.ini'
-config.read(iniFile)
+
+config = load_config(iniFile)
 verbose = config.getint('debug','verbose')
 
 #https://realpython.com/python-logging/
