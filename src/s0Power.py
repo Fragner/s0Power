@@ -26,13 +26,6 @@ keepAliveDetected = 100
 # active verbose level
 #******************************************#
 verbose = getVerbose()
-#******************************************#
-#print to console, in the future to an logfile
-#******************************************#
-#def myPrint(level, text):
-#    if verbose >= level:
-#        print(str(datetime.datetime.now()) + " - " + text)
-
 #************************************************#
 # powermeter has an resolution from 1000 Imp/kWh
 #************************************************#

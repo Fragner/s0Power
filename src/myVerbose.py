@@ -3,6 +3,7 @@ from configparser import ConfigParser
 import os
 import sys
 import logging
+import time
 #******************************************#
 # defined vebose level
 #******************************************#
@@ -13,9 +14,16 @@ INFO = 3
 DEBUG = 4
 
 
-verbose= 0
-#with starting / !!!
-iniFile= 'config/verbose.ini'
+verbose= 2
+#not with starting / !!!
+iniFile = 'config/verbose.ini'
+logFile = '/var/log/myLogs/s0Power.log'
+
+#************************************************#
+# configure logger with level NOTSET --> ALL
+# call from logger will be controlled by verbose 
+#************************************************#
+logging.basicConfig(filename=logFile, filemode='a', format='%(asctime)s - %(levelname)s - %(message)s',level=logging.INFO)
 
 #************************************************#
 #
@@ -37,21 +45,16 @@ def getVerboseName(level):
 #https://www.iditect.com/faq/python/how-to-load-relative-config-file-using-configparser-from-subdirectory.html
 #************************************************#
 def load_config(relative_path):
-    #full_path = os.path.realpath(__file__)
-    #print("load_config " + full_path)
-    
+    myPrint(DEBUG, "load_config " + os.path.realpath(__file__))
     path = os.path.dirname(os.path.abspath(__file__))
-    #print(path)
+    myPrint(DEBUG, path)
     os.chdir(path)
-
-    #os.chdir(sys.path[0])
-    #print(os.getcwd())
     #go "up", away from src
     os.chdir('../')
-    #print(os.getcwd())
+    myPrint(DEBUG, os.getcwd())
     config = ConfigParser()
     file_path = os.path.join(os.getcwd(), relative_path)
-    #print(file_path)    
+    myPrint(DEBUG, file_path)    
 
     if (os.path.isfile(file_path)):
         config.read(file_path)
@@ -68,8 +71,10 @@ def load_config(relative_path):
 #************************************************#
 def myPrint(level, text):
     if verbose >= level:
+        #pribt to console
         print(str(datetime.datetime.now()) + ": " + getVerboseName(level) + " - "+ text)
 
+    #logging into logFile
     if level == ERROR:
         logging.error(text)
     elif level == DEBUG:
@@ -77,9 +82,9 @@ def myPrint(level, text):
     elif level == INFO:
         logging.info(text)        
     elif level == STARTUP:
-        logging.critical(text)
+        logging.info(text)
     else:
-        logging.warning(text)  
+        logging.warning(text)
     
 #************************************************#
 #
@@ -105,27 +110,26 @@ def setVerbose(level):
 #
 #************************************************#
 def getLogLevel(level):
-    #WARN is the default
     if level == ERROR:
         loglevel = logging.ERROR
     elif level == DEBUG:
         loglevel = logging.DEBUG
     elif level == INFO:
         loglevel = logging.INFO
-    else:
+    elif level == WARN:
         loglevel = logging.WARN
+    else:
+        loglevel = logging.NOTSET
     return loglevel
 #************************************************#
-# definitions from ini file
+# get definitions from ini file
 #************************************************#
-
 config = load_config(iniFile)
 verbose = config.getint('debug','verbose')
-
-#https://realpython.com/python-logging/
-logging.basicConfig(filename='/var/log/myLogs/s0Power.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s',level=getLogLevel(verbose))
-
 printConfig(iniFile, config)
 
-
-
+#************************************************#
+# define logging -  output and format
+#https://realpython.com/python-logging/
+#************************************************#
+#logging.basicConfig(filename='/var/log/myLogs/s0Power.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s',level=getLogLevel(verbose))
